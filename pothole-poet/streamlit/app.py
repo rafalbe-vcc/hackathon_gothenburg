@@ -20,7 +20,7 @@ import streamlit as st
 
 # ─── CONFIG ──────────────────────────────────────────────────────────────────
 
-MODE             = os.environ.get("MODE", "seed")             # seed | live | full
+MODE             = os.environ.get("MODE", "live")             # seed | live | full
 PROJECT_ID       = os.environ.get("PROJECT_ID", "")
 BROADCAST_BUCKET = os.environ.get("BROADCAST_BUCKET", "")    # Guardian banner; empty = disabled
 BQ_DATASET       = "pothole_laureate"

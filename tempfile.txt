@@ -1,0 +1,11 @@
+ALLOYDB_HOST="$(gcloud alloydb instances describe pothole-archive-primary \
+  --cluster=pothole-archive --region=europe-west1 \
+  --format='value(ipAddress)')"
+[ -z "$ALLOYDB_HOST" ] && { echo "ERROR: empty IP — check cluster name"; exit 1; }
+echo "AlloyDB private IP: $ALLOYDB_HOST"
+
+# 2. Seed the table (~5 sec)
+export PGPASSWORD='buildwithgemini2026'
+psql "host=$ALLOYDB_HOST user=postgres dbname=postgres sslmode=require" \
+  -c "\copy pothole_reports FROM '/home/user/quest/pothole-poet/seed/pothole_reports.csv' WITH (FORMAT csv, HEADER true, NULL '')"
+# ✅ Expect: COPY 5000

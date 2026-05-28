@@ -16,7 +16,7 @@ metadata:
   name: pothole-gateway
   namespace: laureate
   annotations:
-    networking.gke.io/certmap: REPLACE_CERTMAP_NAME
+    networking.gke.io/certmap: pothole-laureate-map
 spec:
   gatewayClassName: gke-l7-global-external-managed
   addresses:
