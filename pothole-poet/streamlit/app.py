@@ -105,17 +105,19 @@ NEIGHBOURHOODS = [
 ]
 
 PALETTE = {
-    "charcoal":  "#1a1a2e",
-    "warm_grey": "#f5f0eb",
-    "pine":      "#2d6a4f",
-    "copper":    "#b07d62",
+    "volvo_blue": "#003057",     # Volvo Swedish Blue
+    "slate":      "#131921",     # Volvo Charcoal / Dark Slate
+    "nordic_ice": "#f4f6f8",     # Nordic Ice cool light grey background
+    "sandstone":  "#f5f3ef",     # Warm premium sandstone beige accent
+    "amber":      "#c68a4c",     # Crystal Swedish Amber
+    "iron_mark":  "#70757a",     # Satin metal grey
 }
 
 # ─── PAGE CONFIG + CSS ──────────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="Göteborg Pothole Poet Laureate Office",
-    page_icon="🕳",
+    page_title="Volvo | Göteborg Pothole Poet Laureate Office",
+    page_icon="🇸🇪",
     layout="wide",
 )
 
@@ -125,26 +127,30 @@ st.markdown(
       @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
       
       .stApp {{
-        background-color: {PALETTE['warm_grey']};
+        background-color: {PALETTE['nordic_ice']};
         font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
       }}
       h1, h2, h3, h4, h5, h6 {{
         font-family: 'Outfit', sans-serif;
-        color: {PALETTE['charcoal']};
-        font-weight: 800;
-        letter-spacing: -0.02em;
+        color: {PALETTE['slate']};
+        font-weight: 300;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
       }}
       .laureate-poem {{
         font-family: 'Playfair Display', Georgia, serif;
-        font-size: 1.35rem;
+        font-size: 1.3rem;
         font-style: italic;
         line-height: 1.8;
-        color: #2b2b3a;
+        color: {PALETTE['slate']};
         background-color: #ffffff;
-        padding: 2rem 2.5rem;
-        border-radius: 12px;
-        border-left: 6px solid {PALETTE['copper']};
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+        padding: 2.2rem 2.8rem;
+        border-radius: 2px;
+        border-left: 4px solid {PALETTE['volvo_blue']};
+        border-top: 1px solid #eaeaea;
+        border-right: 1px solid #eaeaea;
+        border-bottom: 1px solid #eaeaea;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
         white-space: pre-wrap;
         position: relative;
         overflow: hidden;
@@ -153,40 +159,38 @@ st.markdown(
         content: "“";
         position: absolute;
         top: -10px;
-        left: 10px;
+        left: 15px;
         font-size: 5rem;
-        color: rgba(176, 125, 98, 0.15);
+        color: rgba(0, 48, 87, 0.08);
         font-family: 'Playfair Display', serif;
       }}
       .mode-chip {{
         display: inline-block;
-        padding: 0.35rem 1rem;
-        border-radius: 999px;
-        font-weight: 700;
-        font-size: 0.8rem;
-        letter-spacing: 0.05em;
+        padding: 0.3rem 0.8rem;
+        border-radius: 2px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        background: linear-gradient(135deg, {PALETTE['pine']} 0%, #1b4d32 100%);
+        background: {PALETTE['volvo_blue']};
         color: white;
-        box-shadow: 0 4px 10px rgba(45, 106, 79, 0.2);
         border: 1px solid rgba(255, 255, 255, 0.1);
       }}
       .pothole-card {{
         background: white;
         padding: 1.8rem;
-        border-radius: 16px;
-        border: 1px solid rgba(0,0,0,0.06);
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02);
-        transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 2px;
+        border: 1px solid #eaeaea;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         height: 100%;
       }}
       .pothole-card:hover {{
-        transform: translateY(-5px);
-        box-shadow: 0 15px 30px -5px rgba(176, 125, 98, 0.15), 0 8px 15px -6px rgba(176, 125, 98, 0.08);
-        border-color: rgba(176, 125, 98, 0.3);
+        border-color: {PALETTE['volvo_blue']};
+        box-shadow: 0 10px 25px rgba(0, 48, 87, 0.05);
       }}
       
       /* Poetry Marquee / News Ticker Styles */
@@ -196,34 +200,65 @@ st.markdown(
       }}
       .marquee-wrapper {{
         overflow: hidden;
-        background: linear-gradient(90deg, #1a1a2e 0%, #2b2b4a 100%);
-        color: #f5f0eb;
+        background: {PALETTE['slate']};
+        color: #ffffff;
         padding: 0.75rem 0;
-        font-family: 'Playfair Display', serif;
-        font-style: italic;
-        font-size: 1.05rem;
-        border-radius: 10px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 300;
+        font-size: 0.85rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border-radius: 2px;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 12px rgba(26, 26, 46, 0.15);
         display: flex;
         align-items: center;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       }}
       .marquee-scroll {{
         display: flex;
         width: max-content;
-        animation: marquee 40s linear infinite;
+        animation: marquee 45s linear infinite;
       }}
       .marquee-item {{
         padding: 0 3rem;
         flex-shrink: 0;
         display: inline-flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
       }}
       .marquee-separator {{
-        color: {PALETTE['copper']};
+        color: {PALETTE['amber']};
         font-weight: bold;
+      }}
+      
+      /* Premium Volvo UI Buttons & Form Elements */
+      div.stButton > button {{
+        background-color: {PALETTE['volvo_blue']} !important;
+        color: white !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.12em !important;
+        text-transform: uppercase !important;
+        border: none !important;
+        border-radius: 2px !important;
+        padding: 0.6rem 2rem !important;
+        transition: all 0.3s ease !important;
+        width: 100% !important;
+      }}
+      div.stButton > button:hover {{
+        background-color: {PALETTE['slate']} !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+      }}
+      
+      div[data-baseweb="select"] > div {{
+        border-radius: 2px !important;
+        border-color: #eaeaea !important;
+      }}
+      
+      div[data-baseweb="input"] {{
+        border-radius: 2px !important;
+        border-color: #eaeaea !important;
       }}
     </style>
     """,
@@ -377,8 +412,18 @@ _broadcast = read_broadcast()
 if _broadcast:
     st.warning(f"🛡 **Guardian broadcast** · {_broadcast}")
 
-st.title("🕳 Göteborg Pothole Poet Laureate Office")
-st.caption("*Official commissioned verse on the state of the city's roads, est. 2026.*")
+st.markdown(
+    f"""
+    <div style="text-align: center; margin-top: 1rem; margin-bottom: 2.5rem; border-bottom: 1px solid #eaeaea; padding-bottom: 2rem;">
+        <div style="font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 300; letter-spacing: 0.45em; text-transform: uppercase; color: {PALETTE['slate']}; line-height: 1.2;">VOLVO</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: {PALETTE['iron_mark']}; margin-top: 0.8rem;">Göteborg Pothole Poet Laureate Office</div>
+        <div style="font-family: 'Outfit', sans-serif; font-size: 0.75rem; font-style: italic; color: {PALETTE['amber']}; margin-top: 0.4rem; letter-spacing: 0.05em;">
+            Swedish Civic Verse & Road Safety Telemetry · Designed in Gothenburg · Est. 2026
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ─── SIDEBAR ────────────────────────────────────────────────────────────────
 
@@ -507,8 +552,8 @@ if page == "📋 Citizen Reports Ledger":
             st.markdown(f"""
             <div class="pothole-card" style="margin-bottom: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap;">
-                    <span style="font-size: 1.25rem; font-weight: 800; color: {PALETTE['charcoal']};">{row['neighbourhood']}</span>
-                    <span style="font-size: 0.85rem; padding: 0.25rem 0.6rem; background: #faf9f6; border-radius: 6px; font-weight: bold; color: {PALETTE['charcoal']};">
+                    <span style="font-size: 1.25rem; font-weight: 600; color: {PALETTE['slate']};">{row['neighbourhood']}</span>
+                    <span style="font-size: 0.85rem; padding: 0.25rem 0.6rem; background: {PALETTE['sandstone']}; border-radius: 2px; font-weight: bold; color: {PALETTE['slate']};">
                         {row['reported_at']}
                     </span>
                 </div>
@@ -519,11 +564,11 @@ if page == "📋 Citizen Reports Ledger":
                     <span style="color: #ccc;">·</span>
                     <span style="background: rgba(0,0,0,0.03); padding: 0.15rem 0.4rem; border-radius: 4px;">{mood_emoji} {row['reporter_mood']}</span>
                 </div>
-                <div style="margin-bottom: 0.8rem; font-size: 0.95rem; color: #444; background: rgba(0,0,0,0.01); padding: 0.6rem; border-radius: 6px; display: flex; gap: 20px;">
+                <div style="margin-bottom: 0.8rem; font-size: 0.95rem; color: #444; background: rgba(0,0,0,0.01); padding: 0.6rem; border-radius: 2px; display: flex; gap: 20px;">
                     <span>{swallowed_str}</span>
                     <span>{citizen_str}</span>
                 </div>
-                <div class="laureate-poem" style="font-size: 1.1rem; padding: 1rem 1.5rem; border-left: 4px solid {PALETTE['copper']}; background: #faf9f6; border-radius: 0 8px 8px 0; margin-bottom: 0; box-shadow: none;">
+                <div class="laureate-poem" style="font-size: 1.1rem; padding: 1rem 1.5rem; border-left: 4px solid {PALETTE['volvo_blue']}; background: {PALETTE['sandstone']}; border-radius: 0 2px 2px 0; margin-bottom: 0; box-shadow: none;">
                     "{row['reporter_quote']}"
                 </div>
             </div>
@@ -602,7 +647,7 @@ with map_col:
                 data=df_map,
                 get_position=["centroid_lng", "centroid_lat"],
                 get_radius="radius",
-                get_fill_color="[176, 125, 98, 180]",  # Copper theme
+                get_fill_color="[0, 48, 87, 180]",  # Volvo Swedish Blue theme
                 pickable=True,
                 auto_highlight=True,
             ),
@@ -611,7 +656,7 @@ with map_col:
             "html": "<b>{neighbourhood}</b><br/>"
                     "Reports: {pothole_count}<br/>"
                     "Severity: {avg_severity:.2f} / 5",
-            "style": {"backgroundColor": "#1a1a2e", "color": "#f5f0eb", "fontFamily": "Outfit"}
+            "style": {"backgroundColor": PALETTE['slate'], "color": "#ffffff", "fontFamily": "Outfit"}
         }
     ))
 
@@ -668,17 +713,17 @@ for idx, (_, r) in enumerate(df.iterrows()):
         <div class="pothole-card">
             <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
-                    <span style="font-size: 1.25rem; font-weight: 800; color: {PALETTE['charcoal']}; letter-spacing: -0.01em;">{r['neighbourhood']}</span>
-                    <span style="font-size: 0.8rem; padding: 0.25rem 0.6rem; background: {PALETTE['warm_grey']}; border-radius: 6px; font-weight: 700; color: {PALETTE['charcoal']};">
+                    <span style="font-size: 1.25rem; font-weight: 600; color: {PALETTE['slate']}; letter-spacing: -0.01em;">{r['neighbourhood']}</span>
+                    <span style="font-size: 0.8rem; padding: 0.25rem 0.6rem; background: {PALETTE['sandstone']}; border-radius: 2px; font-weight: 700; color: {PALETTE['slate']};">
                         {r['pothole_count']} reports
                     </span>
                 </div>
                 <div style="margin-bottom: 1rem; font-size: 0.85rem; color: #5a5a6a; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                     <span style="background: rgba(0,0,0,0.03); padding: 0.15rem 0.4rem; border-radius: 4px;">{weather_emoji} {r.get('dominant_weather', '—')}</span>
                     <span style="background: rgba(0,0,0,0.03); padding: 0.15rem 0.4rem; border-radius: 4px;">{mood_emoji} {r.get('dominant_mood', '—')}</span>
-                    <span style="color: {PALETTE['copper']}; font-weight: bold; letter-spacing: 1px;">{severity_stars}</span>
+                    <span style="color: {PALETTE['amber']}; font-weight: bold; letter-spacing: 1px;">{severity_stars}</span>
                 </div>
-                <div class="laureate-poem" style="font-size: 1.05rem; padding: 1.2rem; border-left: 4px solid {PALETTE['copper']}; background: #faf9f6; border-radius: 0 8px 8px 0; margin-bottom: 0; box-shadow: none;">
+                <div class="laureate-poem" style="font-size: 1.05rem; padding: 1.2rem; border-left: 4px solid {PALETTE['volvo_blue']}; background: {PALETTE['sandstone']}; border-radius: 0 2px 2px 0; margin-bottom: 0; box-shadow: none;">
                     {r['ode']}
                 </div>
             </div>
