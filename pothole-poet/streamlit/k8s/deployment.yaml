@@ -24,7 +24,7 @@ spec:
               containerPort: 8080
           env:
             - name: MODE
-              value: "seed"
+              value: "live"
             - name: PROJECT_ID
               value: "vcc-ic-g11"
             # Guardian's broadcast banner: gs://<project>-broadcast/broadcast.txt
