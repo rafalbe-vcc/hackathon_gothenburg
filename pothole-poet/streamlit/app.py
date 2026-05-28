@@ -50,26 +50,108 @@ st.set_page_config(
 st.markdown(
     f"""
     <style>
-      .stApp {{ background-color: {PALETTE['warm_grey']}; }}
-      h1, h2, h3 {{ color: {PALETTE['charcoal']}; }}
-      .laureate-poem {{
-        font-family: Georgia, serif;
-        font-size: 1.4rem;
-        line-height: 1.7;
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+      
+      .stApp {{
+        background-color: {PALETTE['warm_grey']};
+        font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      }}
+      h1, h2, h3, h4, h5, h6 {{
+        font-family: 'Outfit', sans-serif;
         color: {PALETTE['charcoal']};
-        background-color: white;
-        padding: 1.5rem 2rem;
-        border-left: 4px solid {PALETTE['copper']};
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }}
+      .laureate-poem {{
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.35rem;
+        font-style: italic;
+        line-height: 1.8;
+        color: #2b2b3a;
+        background-color: #ffffff;
+        padding: 2rem 2.5rem;
+        border-radius: 12px;
+        border-left: 6px solid {PALETTE['copper']};
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
         white-space: pre-wrap;
+        position: relative;
+        overflow: hidden;
+      }}
+      .laureate-poem::before {{
+        content: "“";
+        position: absolute;
+        top: -10px;
+        left: 10px;
+        font-size: 5rem;
+        color: rgba(176, 125, 98, 0.15);
+        font-family: 'Playfair Display', serif;
       }}
       .mode-chip {{
         display: inline-block;
-        padding: 0.25rem 0.75rem;
+        padding: 0.35rem 1rem;
         border-radius: 999px;
-        font-weight: 600;
-        font-size: 0.85rem;
-        background: {PALETTE['pine']};
+        font-weight: 700;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        background: linear-gradient(135deg, {PALETTE['pine']} 0%, #1b4d32 100%);
         color: white;
+        box-shadow: 0 4px 10px rgba(45, 106, 79, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }}
+      .pothole-card {{
+        background: white;
+        padding: 1.8rem;
+        border-radius: 16px;
+        border: 1px solid rgba(0,0,0,0.06);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02);
+        transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+      }}
+      .pothole-card:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px -5px rgba(176, 125, 98, 0.15), 0 8px 15px -6px rgba(176, 125, 98, 0.08);
+        border-color: rgba(176, 125, 98, 0.3);
+      }}
+      
+      /* Poetry Marquee / News Ticker Styles */
+      @keyframes marquee {{
+        0% {{ transform: translateX(0%); }}
+        100% {{ transform: translateX(-50%); }}
+      }}
+      .marquee-wrapper {{
+        overflow: hidden;
+        background: linear-gradient(90deg, #1a1a2e 0%, #2b2b4a 100%);
+        color: #f5f0eb;
+        padding: 0.75rem 0;
+        font-family: 'Playfair Display', serif;
+        font-style: italic;
+        font-size: 1.05rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(26, 26, 46, 0.15);
+        display: flex;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }}
+      .marquee-scroll {{
+        display: flex;
+        width: max-content;
+        animation: marquee 40s linear infinite;
+      }}
+      .marquee-item {{
+        padding: 0 3rem;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }}
+      .marquee-separator {{
+        color: {PALETTE['copper']};
+        font-weight: bold;
       }}
     </style>
     """,
@@ -188,49 +270,143 @@ if df.empty:
     st.warning("No data yet. The Laureate awaits material.")
     st.stop()
 
+# 📜 GÖTEBORG POETRY TICKER (Live Marquee)
+ticker_items = []
+for _, row in df.iterrows():
+    first_line = row["ode"].split("\n")[0] if "\n" in row["ode"] else row["ode"]
+    if len(first_line) > 65:
+        first_line = first_line[:62] + "..."
+    ticker_items.append(
+        f'<span class="marquee-item"><span class="marquee-separator">✦</span> '
+        f'<strong>{row["neighbourhood"]}</strong>: "{first_line}"</span>'
+    )
+
+# Seamless loop requires doubling the content
+double_ticker = ticker_items + ticker_items
+ticker_html = f"""
+<div class="marquee-wrapper">
+    <div class="marquee-scroll">
+        {"".join(double_ticker)}
+    </div>
+</div>
+"""
+st.markdown(ticker_html, unsafe_allow_html=True)
+
 # Top-level metrics
 c1, c2, c3 = st.columns(3)
-c1.metric("Neighbourhoods on watch", len(df))
-c2.metric("Total potholes reported", int(df["pothole_count"].sum()))
-c3.metric("Citywide average severity", f"{df['avg_severity'].mean():.2f} / 5")
+c1.metric("Neighbourhoods on Watch", len(df))
+c2.metric("Total Potholes Reported", int(df["pothole_count"].sum()))
+c3.metric("Citywide Average Severity", f"{df['avg_severity'].mean():.2f} / 5")
 
-st.markdown("---")
+st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
-# Neighbourhood selector
-nb = st.selectbox("Select a neighbourhood:", df["neighbourhood"].tolist())
-row = df[df["neighbourhood"] == nb].iloc[0]
+# Side-by-side interactive split
+map_col, ode_col = st.columns([1.2, 1])
 
-# Poem display
-st.markdown("### Today's Ode")
-st.markdown(f'<div class="laureate-poem">{row["ode"]}</div>', unsafe_allow_html=True)
+with map_col:
+    st.subheader("📍 Gothenburg Pothole Topography")
+    st.caption("*Private VPC-bound mapping of citizen reports across urban sectors.*")
+    
+    import pydeck as pdk
+    # Make a copy and scale points for a stunning 3D scatter effect
+    df_map = df.copy()
+    df_map["radius"] = df_map["pothole_count"] * 12
+    
+    st.pydeck_chart(pdk.Deck(
+        map_style="mapbox://styles/mapbox/light-v9",
+        initial_view_state=pdk.ViewState(
+            latitude=57.708878, 
+            longitude=11.974560, 
+            zoom=11.0, 
+            pitch=35
+        ),
+        layers=[
+            pdk.Layer(
+                "ScatterplotLayer",
+                data=df_map,
+                get_position=["centroid_lng", "centroid_lat"],
+                get_radius="radius",
+                get_fill_color="[176, 125, 98, 180]",  # Copper theme
+                pickable=True,
+                auto_highlight=True,
+            ),
+        ],
+        tooltip={
+            "html": "<b>{neighbourhood}</b><br/>"
+                    "Reports: {pothole_count}<br/>"
+                    "Severity: {avg_severity:.2f} / 5",
+            "style": {"backgroundColor": "#1a1a2e", "color": "#f5f0eb", "fontFamily": "Outfit"}
+        }
+    ))
 
-# Per-neighbourhood stats
-st.markdown("---")
-st.markdown("### Office Records")
-m1, m2 = st.columns(2)
-m1.metric(f"Reports in {nb}", int(row["pothole_count"]))
-m2.metric("Average severity", f"{row['avg_severity']:.2f} / 5")
-
-if MODE != "seed" and pd.notna(row.get("composed_at", None)):
-    st.caption(
-        f"Composed at: {row['composed_at']} · "
-        f"Dominant weather: {row.get('dominant_weather', '—')} · "
-        f"Dominant mood: {row.get('dominant_mood', '—')}"
-    )
+with ode_col:
+    st.subheader("🖋️ Today's Featured Ode")
+    st.caption("*Select an active neighbourhood to read the Laureate's official composition.*")
+    
+    nb = st.selectbox("Select a neighbourhood:", df["neighbourhood"].tolist(), label_visibility="collapsed")
+    row = df[df["neighbourhood"] == nb].iloc[0]
+    
+    st.markdown(f'<div class="laureate-poem">{row["ode"]}</div>', unsafe_allow_html=True)
+    
+    # Per-neighbourhood metrics
+    st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
+    m1, m2 = st.columns(2)
+    m1.metric(f"Reports in {nb}", int(row["pothole_count"]))
+    m2.metric("Average Severity", f"{row['avg_severity']:.2f} / 5")
+    
+    if MODE != "seed" and pd.notna(row.get("composed_at", None)):
+        st.caption(
+            f"Composed: {row['composed_at']} · "
+            f"Weather: {row.get('dominant_weather', '—')} · "
+            f"Mood: {row.get('dominant_mood', '—')}"
+        )
 
 # ─── TEAM CANVAS ────────────────────────────────────────────────────────────
 #
-# TEAM: render however you want, this is your space.
-# `df` has every neighbourhood with: pothole_count, avg_severity, dominant_weather,
-# dominant_mood, centroid_lat, centroid_lng, ode (poem), composed_at.
-# Inspiration cards in codelab/quest-4-render.md — but you can ignore them all
-# and design something nobody else thought of.
+# TEAM: Render however you want, this is your space.
+# We replace the static dataframe with a glorious interactive gallery.
 # ─────────────────────────────────────────────────────────────────────────────
 
 st.markdown("---")
-st.markdown("### Office Bulletin Board")
-st.dataframe(
-    df[["neighbourhood", "pothole_count", "avg_severity", "dominant_mood", "ode"]],
-    use_container_width=True,
-    hide_index=True,
-)
+st.markdown("### 🏛️ The Gothenburg Poetry Wall")
+st.caption("*Browse the Laureate's complete civic portfolio by district.*")
+
+# Create columns for cards (3 columns)
+gallery_cols = st.columns(3)
+for idx, (_, r) in enumerate(df.iterrows()):
+    col = gallery_cols[idx % 3]
+    with col:
+        # Weather & mood icons
+        weather_emoji = {
+            "snö": "❄️", "regn": "🌧️", "sol": "☀️", "slask": "🌨️", "dimma": "🌫️"
+        }.get(str(r.get("dominant_weather", "")).lower(), "🌤️")
+        
+        mood_emoji = {
+            "frustrated": "😤", "philosophical": "🤔", "amused": "🤭", 
+            "resigned": "😔", "vengeful": "🥷", "lagom": "☕"
+        }.get(str(r.get("dominant_mood", "")).lower(), "🎭")
+        
+        severity_stars = "★" * int(round(r["avg_severity"])) + "☆" * (5 - int(round(r["avg_severity"])))
+        
+        col.markdown(f"""
+        <div class="pothole-card">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                    <span style="font-size: 1.25rem; font-weight: 800; color: {PALETTE['charcoal']}; letter-spacing: -0.01em;">{r['neighbourhood']}</span>
+                    <span style="font-size: 0.8rem; padding: 0.25rem 0.6rem; background: {PALETTE['warm_grey']}; border-radius: 6px; font-weight: 700; color: {PALETTE['charcoal']};">
+                        {r['pothole_count']} reports
+                    </span>
+                </div>
+                <div style="margin-bottom: 1rem; font-size: 0.85rem; color: #5a5a6a; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <span style="background: rgba(0,0,0,0.03); padding: 0.15rem 0.4rem; border-radius: 4px;">{weather_emoji} {r.get('dominant_weather', '—')}</span>
+                    <span style="background: rgba(0,0,0,0.03); padding: 0.15rem 0.4rem; border-radius: 4px;">{mood_emoji} {r.get('dominant_mood', '—')}</span>
+                    <span style="color: {PALETTE['copper']}; font-weight: bold; letter-spacing: 1px;">{severity_stars}</span>
+                </div>
+                <div class="laureate-poem" style="font-size: 1.05rem; padding: 1.2rem; border-left: 4px solid {PALETTE['copper']}; background: #faf9f6; border-radius: 0 8px 8px 0; margin-bottom: 0; box-shadow: none;">
+                    {r['ode']}
+                </div>
+            </div>
+        </div>
+        <div style="margin-bottom: 1.5rem;"></div>
+        """, unsafe_allow_html=True)
+
