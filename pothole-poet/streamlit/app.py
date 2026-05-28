@@ -429,3 +429,18 @@ for idx, (_, r) in enumerate(df.iterrows()):
         <div style="margin-bottom: 1.5rem;"></div>
         """, unsafe_allow_html=True)
 
+# ─── FOOTER & VERSION ────────────────────────────────────────────────────────
+st.markdown("<div style='margin-top: 3rem;'></div>", unsafe_allow_html=True)
+st.markdown("---")
+f_col1, f_col2 = st.columns([1, 1])
+with f_col1:
+    st.caption("© 2026 Göteborg Pothole Poet Laureate Office · Iron & Cloud Hackathon")
+with f_col2:
+    st.markdown(
+        "<div style='text-align: right; color: rgba(0,0,0,0.4); font-size: 0.85rem; font-weight: 600;'>"
+        "Deployed Version: <span style='padding: 0.2rem 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-family: monospace;'>v3.1.0-gold</span>"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+
