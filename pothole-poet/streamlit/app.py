@@ -435,7 +435,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.subheader("🧭 Navigation")
-    page = st.radio("Go to page:", ["🖋️ Poet Laureate Office", "📋 Citizen Reports Ledger"], label_visibility="collapsed")
+    page = st.radio("Go to page:", ["🖋️ Poet Laureate Office", "📋 Citizen Reports Ledger", "🎮 Volvo City Safety Drive"], label_visibility="collapsed")
 
     from alloydb_writer import insert_pothole_report
     st.markdown("---")
@@ -574,6 +574,797 @@ if page == "📋 Citizen Reports Ledger":
             </div>
             """, unsafe_allow_html=True)
             
+    # Draw Footer
+    st.markdown("<div style='margin-top: 3rem;'></div>", unsafe_allow_html=True)
+    st.markdown("---")
+    f_col1, f_col2 = st.columns([1, 1])
+    with f_col1:
+        st.caption("© 2026 Göteborg Pothole Poet Laureate Office · Iron & Cloud Hackathon")
+    with f_col2:
+        st.markdown(
+            "<div style='text-align: right; color: rgba(0,0,0,0.4); font-size: 0.85rem; font-weight: 600;'>"
+            "Deployed Version: <span style='padding: 0.2rem 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-family: monospace;'>v3.1.0-gold</span>"
+            "</div>",
+            unsafe_allow_html=True
+        )
+        
+    st.stop()
+
+
+if page == "🎮 Volvo City Safety Drive":
+    st.subheader("🇸🇪 Volvo IntelliSafe Simulator")
+    st.caption("*Interactive 2D City Safety training ground. Learn to avoid road craters behind the wheel of a Volvo.*")
+    
+    # We will pass the list of neighbourhoods and odes to the Javascript game so it has dynamic content
+    # Make sure we fall back gracefully if BQ or AlloyDB data is empty
+    odes_list = []
+    for _, row in df.iterrows():
+        odes_list.append({
+            "neighbourhood": row["neighbourhood"],
+            "ode": row["ode"]
+        })
+    import json
+    odes_json_str = json.dumps(odes_list)
+    
+    # Let's render the iframe component
+    import streamlit.components.v1 as components
+    
+    game_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Volvo City Safety Drive</title>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                background-color: #131921;
+                font-family: 'Outfit', sans-serif;
+                color: #ffffff;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                user-select: none;
+                overflow: hidden;
+            }}
+            #game-container {{
+                position: relative;
+                width: 800px;
+                height: 500px;
+                background-color: #1c2430;
+                border: 4px solid #003057;
+                border-radius: 4px;
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+                overflow: hidden;
+            }}
+            canvas {{
+                display: block;
+                background-color: #242e3b;
+            }}
+            /* Premium HUD / Dashboard Styling */
+            #hud-overlay {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 50px;
+                background: linear-gradient(180deg, rgba(19, 25, 33, 0.9) 0%, rgba(19, 25, 33, 0.7) 100%);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0 20px;
+                box-sizing: border-box;
+                z-index: 10;
+                font-size: 0.85rem;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+            }}
+            .hud-block {{
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }}
+            .hud-label {{
+                color: #70757a;
+                font-weight: 500;
+            }}
+            .hud-value {{
+                font-weight: 600;
+            }}
+            .status-indicator {{
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background-color: #2ecc71;
+                box-shadow: 0 0 10px #2ecc71;
+                display: inline-block;
+            }}
+            /* Warning Banner */
+            #warning-banner {{
+                position: absolute;
+                top: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(198, 138, 76, 0.9);
+                border: 1px solid #c68a4c;
+                color: #ffffff;
+                padding: 10px 24px;
+                font-weight: 600;
+                letter-spacing: 0.1em;
+                border-radius: 2px;
+                z-index: 10;
+                text-transform: uppercase;
+                font-size: 0.9rem;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+                display: none;
+                animation: pulse 1s infinite alternate;
+            }}
+            @keyframes pulse {{
+                0% {{ opacity: 0.6; }}
+                100% {{ opacity: 1; }}
+            }}
+            /* Safety Intervention Message */
+            #safety-overlay {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(194, 54, 22, 0.85);
+                z-index: 20;
+                display: none;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                color: #ffffff;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+            }}
+            #safety-overlay h2 {{
+                font-size: 2.2rem;
+                font-weight: 300;
+                margin-bottom: 0.5rem;
+                letter-spacing: 0.2em;
+            }}
+            #safety-overlay p {{
+                font-size: 0.9rem;
+                color: #eaeaea;
+                margin-top: 0;
+            }}
+            /* Game Over Screen */
+            #game-over {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(19, 25, 33, 0.95);
+                z-index: 30;
+                display: none;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                padding: 40px;
+                box-sizing: border-box;
+                text-align: center;
+            }}
+            #game-over h2 {{
+                font-family: 'Outfit', sans-serif;
+                font-size: 1.8rem;
+                font-weight: 300;
+                letter-spacing: 0.25em;
+                color: #eaeaea;
+                margin-bottom: 0.5rem;
+                text-transform: uppercase;
+            }}
+            #game-over .safety-badge {{
+                font-size: 0.8rem;
+                font-weight: 600;
+                letter-spacing: 0.12em;
+                color: #c68a4c;
+                border: 1px solid #c68a4c;
+                padding: 4px 12px;
+                border-radius: 2px;
+                text-transform: uppercase;
+                margin-bottom: 1.5rem;
+            }}
+            #game-over .poetry-card {{
+                background-color: #1c2430;
+                border-left: 3px solid #003057;
+                padding: 1.5rem 2rem;
+                border-radius: 2px;
+                max-width: 550px;
+                text-align: left;
+                margin-bottom: 2rem;
+                font-family: 'Playfair Display', serif;
+                font-style: italic;
+                font-size: 1.15rem;
+                line-height: 1.7;
+                color: #eae6e1;
+                position: relative;
+                box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+            }}
+            #game-over .poetry-card::before {{
+                content: "“";
+                position: absolute;
+                top: -5px;
+                left: 8px;
+                font-size: 3.5rem;
+                color: rgba(0, 48, 87, 0.2);
+            }}
+            #game-over .poetry-author {{
+                font-family: 'Outfit', sans-serif;
+                font-size: 0.75rem;
+                font-style: normal;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: #c68a4c;
+                margin-top: 0.8rem;
+                text-align: right;
+            }}
+            .btn {{
+                background-color: #003057;
+                color: #ffffff;
+                border: none;
+                border-radius: 2px;
+                padding: 10px 30px;
+                font-family: 'Outfit', sans-serif;
+                font-size: 0.85rem;
+                font-weight: 500;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }}
+            .btn:hover {{
+                background-color: #c68a4c;
+                box-shadow: 0 4px 12px rgba(198, 138, 76, 0.3);
+            }}
+            /* Instructions Overlay */
+            #instructions {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(19, 25, 33, 0.9);
+                z-index: 40;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                padding: 30px;
+                box-sizing: border-box;
+            }}
+            #instructions h2 {{
+                font-size: 1.6rem;
+                font-weight: 300;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+                color: #ffffff;
+                margin-bottom: 1.5rem;
+            }}
+            .control-keys {{
+                display: flex;
+                gap: 15px;
+                margin-bottom: 2rem;
+            }}
+            .key-cap {{
+                background-color: #242e3b;
+                border: 1px solid #70757a;
+                border-radius: 4px;
+                padding: 10px 18px;
+                font-size: 1.1rem;
+                font-weight: bold;
+                color: #eaeaea;
+                box-shadow: 0 4px 0 #131921;
+            }}
+        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div id="game-container">
+            <!-- HUD -->
+            <div id="hud-overlay">
+                <div class="hud-block">
+                    <span class="status-indicator"></span>
+                    <span class="hud-label">IntelliSafe:</span>
+                    <span class="hud-value" style="color: #2ecc71;">Active</span>
+                </div>
+                <div class="hud-block">
+                    <span class="hud-label">Safety Shield:</span>
+                    <span id="shield-hud" class="hud-value" style="color: #c68a4c;">[ ] [ ] [ ]</span>
+                </div>
+                <div class="hud-block">
+                    <span class="hud-label">Distance:</span>
+                    <span id="score-hud" class="hud-value">0 m</span>
+                </div>
+            </div>
+
+            <!-- Danger Warning Alert -->
+            <div id="warning-banner">⚠️ Collision Warning</div>
+
+            <!-- Safety Intervention Warning -->
+            <div id="safety-overlay">
+                <h2>City Safety</h2>
+                <p>Automatic Brake Intervention Active - Impact Mitigated</p>
+            </div>
+
+            <!-- Game Over -->
+            <div id="game-over">
+                <h2>Simulation Suspended</h2>
+                <div class="safety-badge">Passenger Cabin Safe (Volvo Certified)</div>
+                <div class="poetry-card">
+                    <div id="consolation-poetry">Loading city report...</div>
+                    <div id="poetry-location" class="poetry-author">— Göteborg Poet Laureate</div>
+                </div>
+                <button class="btn" onclick="startGame()">Engage Ignition</button>
+            </div>
+
+            <!-- Instructions -->
+            <div id="instructions">
+                <h2>Volvo City Safety Drive</h2>
+                <p style="max-width: 500px; color: #b0b5be; line-height: 1.6; margin-bottom: 2rem; font-size: 0.95rem;">
+                    Pilot a Volvo wagon on the potholed streets of Gothenburg. Steer left or right to avoid the oncoming chassis hazards. 
+                    Volvo City Safety sensors will warn you of threats and mitigate impact severity!
+                </p>
+                <div class="control-keys">
+                    <div class="key-cap">◀ / A</div>
+                    <div class="key-cap">▶ / D</div>
+                    <p style="align-self: center; color: #70757a; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 10px;">or</p>
+                    <div class="key-cap" style="font-size: 0.85rem; padding: 10px 15px;">Mouse / Drag</div>
+                </div>
+                <button class="btn" onclick="startGame()">Ignite Engine</button>
+            </div>
+
+            <canvas id="gameCanvas" width="800" height="500"></canvas>
+        </div>
+
+        <script>
+            const canvas = document.getElementById("gameCanvas");
+            const ctx = canvas.getContext("2d");
+            
+            // Core Game State
+            let gameRunning = false;
+            let playerX = canvas.width / 2;
+            let playerY = canvas.height - 100;
+            let playerWidth = 36;
+            let playerHeight = 75;
+            let playerSpeed = 7;
+            let keys = {{}};
+            let score = 0;
+            let shields = 3;
+            let obstacles = [];
+            let roadOffset = 0;
+            let obstacleSpeed = 4.5;
+            let obstacleSpawnRate = 120; // Frames between spawns
+            let obstacleFrameCount = 0;
+            
+            // Audio System
+            let audioCtx = null;
+            
+            // Real Odes passed in from BigQuery/AlloyDB
+            const odesData = {odes_json_str};
+            
+            // Standard backup odes if data is missing
+            const backupOdes = [
+                {{
+                    "neighbourhood": "Hisingen",
+                    "ode": "Oh depth of slush, oh iron mark,\\nThe tyre yields unto the dark.\\nA Volvo hubcap left behind,\\nAn amber teardrop in the slask."
+                }},
+                {{
+                    "neighbourhood": "Haga",
+                    "ode": "The cobblestone yields to the crater's bite,\\nIn morning fog and rainy light.\\nBut Volvo's steel stands firm and deep,\\nWhile we compile the odes to keep."
+                }}
+            ];
+            
+            const activeOdes = odesData.length > 0 ? odesData : backupOdes;
+
+            // Handle Input Keys
+            window.addEventListener("keydown", e => {{
+                keys[e.key] = true;
+                if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key)) {{
+                    e.preventDefault();
+                }}
+            }});
+            window.addEventListener("keyup", e => keys[e.key] = false);
+
+            // Handle Mouse / Touch Steer
+            let isDragging = false;
+            canvas.addEventListener("mousedown", () => isDragging = true);
+            canvas.addEventListener("mouseup", () => isDragging = false);
+            canvas.addEventListener("mousemove", e => {{
+                if (isDragging || !isDragging) {{ // Allow hover steering for butter-smooth desktop feel
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    // Scale because of CSS sizing
+                    const scaledX = mouseX * (canvas.width / rect.width);
+                    playerX = Math.max(150 + playerWidth/2, Math.min(canvas.width - 150 - playerWidth/2, scaledX));
+                }}
+            }});
+            canvas.addEventListener("touchstart", () => isDragging = true);
+            canvas.addEventListener("touchend", () => isDragging = false);
+            canvas.addEventListener("touchmove", e => {{
+                if (e.touches.length > 0) {{
+                    const rect = canvas.getBoundingClientRect();
+                    const touchX = e.touches[0].clientX - rect.left;
+                    const scaledX = touchX * (canvas.width / rect.width);
+                    playerX = Math.max(150 + playerWidth/2, Math.min(canvas.width - 150 - playerWidth/2, scaledX));
+                }}
+            }});
+
+            // Web Audio Synth Function
+            function initAudio() {{
+                if (!audioCtx) {{
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }}
+            }}
+
+            function playSound(type) {{
+                if (!audioCtx) return;
+                try {{
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    if (type === "warning") {{
+                        // Volvo dual warning tone (high pitch pulse)
+                        osc.type = "sawtooth";
+                        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(1800, audioCtx.currentTime + 0.1);
+                        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.15);
+                    }} else if (type === "mitigate") {{
+                        // Volvo Safety impact thud and alarm
+                        osc.type = "triangle";
+                        osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.35);
+                        gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.4);
+                        
+                        // Dual tone chirp
+                        setTimeout(() => {{
+                            playSound("warning");
+                        }}, 100);
+                    }} else if (type === "gameover") {{
+                        // Melancholic Swedish chord
+                        osc.type = "sine";
+                        osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.8);
+                        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.8);
+                    }}
+                }} catch(e) {{}}
+            }}
+
+            function startGame() {{
+                initAudio();
+                document.getElementById("instructions").style.display = "none";
+                document.getElementById("game-over").style.display = "none";
+                document.getElementById("safety-overlay").style.display = "none";
+                document.getElementById("warning-banner").style.display = "none";
+                
+                playerX = canvas.width / 2;
+                score = 0;
+                shields = 3;
+                obstacles = [];
+                obstacleSpeed = 4.5;
+                obstacleFrameCount = 0;
+                gameRunning = true;
+                
+                updateShieldHud();
+                requestAnimationFrame(gameLoop);
+            }}
+
+            function updateShieldHud() {{
+                let shieldsText = "";
+                for(let i=0; i<3; i++) {{
+                    shieldsText += i < shields ? "▰ " : "▱ ";
+                }}
+                document.getElementById("shield-hud").textContent = shieldsText;
+                if (shields === 1) {{
+                    document.getElementById("shield-hud").style.color = "#c23616";
+                }} else {{
+                    document.getElementById("shield-hud").style.color = "#c68a4c";
+                }}
+            }}
+
+            // Drawing helper: beautiful Volvo EX90 top-down vector
+            function drawVolvo(x, y) {{
+                ctx.save();
+                ctx.translate(x, y);
+                
+                // Shadow
+                ctx.shadowColor = "rgba(0,0,0,0.4)";
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetY = 5;
+
+                // Outer Mirrors
+                ctx.fillStyle = "#003057";
+                ctx.fillRect(-22, -18, 6, 4); // Left mirror
+                ctx.fillRect(16, -18, 6, 4);  // Right mirror
+                
+                // Main Car Body (Boron Steel Structure)
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetY = 0;
+                ctx.fillStyle = "#003057"; // Classic Volvo Dark Blue
+                ctx.beginPath();
+                ctx.roundRect(-16, -playerHeight/2, playerWidth, playerHeight, [8, 8, 4, 4]);
+                ctx.fill();
+                
+                // Chrome details & Swedish Grille lines
+                ctx.strokeStyle = "rgba(255,255,255,0.15)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-12, -playerHeight/2 + 3);
+                ctx.lineTo(12, -playerHeight/2 + 3);
+                ctx.stroke();
+
+                // Panoramic Panoramic Glass Roof
+                ctx.fillStyle = "#131921"; // Dark Obsidian
+                ctx.beginPath();
+                ctx.roundRect(-12, -playerHeight/2 + 15, playerWidth - 8, 40, [4, 4, 2, 2]);
+                ctx.fill();
+                
+                // Interior dashboard display glow (warm copper/sandstone)
+                ctx.fillStyle = "rgba(198, 138, 76, 0.4)";
+                ctx.fillRect(-8, -playerHeight/2 + 18, 16, 2);
+
+                // Rear Windshield
+                ctx.fillStyle = "#1a222e";
+                ctx.fillRect(-11, 20, 22, 10);
+                
+                // Signature Active "Thor's Hammer" LED Headlights
+                ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+                ctx.shadowColor = "rgba(255,255,255,0.7)";
+                ctx.shadowBlur = 15;
+                ctx.fillRect(-15, -playerHeight/2 + 4, 4, 3);
+                ctx.fillRect(11, -playerHeight/2 + 4, 4, 3);
+                
+                // Headlight Beams (Aesthetic volumetric cone)
+                ctx.shadowBlur = 0;
+                const beamGradientLeft = ctx.createLinearGradient(-13, -playerHeight/2, -25, -playerHeight/2 - 100);
+                beamGradientLeft.addColorStop(0, "rgba(255, 255, 255, 0.35)");
+                beamGradientLeft.addColorStop(1, "rgba(255, 255, 255, 0.0)");
+                ctx.fillStyle = beamGradientLeft;
+                ctx.beginPath();
+                ctx.moveTo(-15, -playerHeight/2 + 4);
+                ctx.lineTo(-45, -playerHeight/2 - 120);
+                ctx.lineTo(0, -playerHeight/2 - 120);
+                ctx.closePath();
+                ctx.fill();
+
+                const beamGradientRight = ctx.createLinearGradient(13, -playerHeight/2, 25, -playerHeight/2 - 100);
+                beamGradientRight.addColorStop(0, "rgba(255, 255, 255, 0.35)");
+                beamGradientRight.addColorStop(1, "rgba(255, 255, 255, 0.0)");
+                ctx.fillStyle = beamGradientRight;
+                ctx.beginPath();
+                ctx.moveTo(11, -playerHeight/2 + 4);
+                ctx.lineTo(0, -playerHeight/2 - 120);
+                ctx.lineTo(45, -playerHeight/2 - 120);
+                ctx.closePath();
+                ctx.fill();
+
+                // Signature vertical Red Taillights (Swedish safety lighting)
+                ctx.fillStyle = "#c23616";
+                ctx.shadowColor = "#c23616";
+                ctx.shadowBlur = 8;
+                ctx.fillRect(-14, playerHeight/2 - 4, 3, 3);
+                ctx.fillRect(11, playerHeight/2 - 4, 3, 3);
+
+                ctx.restore();
+            }}
+
+            function drawObstacle(obs) {{
+                ctx.save();
+                
+                // Pothole Crater
+                ctx.fillStyle = "#181f29"; // Dark recess
+                ctx.beginPath();
+                ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Crack Ring (rough edges)
+                ctx.strokeStyle = "rgba(0,0,0,0.6)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(obs.x, obs.y, obs.radius + 1, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Slush/water layer reflections (white dashes)
+                ctx.strokeStyle = "rgba(255,255,255,0.15)";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(obs.x - 2, obs.y - 2, obs.radius - 4, Math.PI * 0.9, Math.PI * 1.4);
+                ctx.stroke();
+
+                // Text tag with district label
+                ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+                ctx.font = "500 9px 'Outfit', sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(obs.neighbourhood.toUpperCase(), obs.x, obs.y + obs.radius + 15);
+                
+                ctx.restore();
+            }}
+
+            function triggerCitySafety(obs) {{
+                shields--;
+                updateShieldHud();
+                playSound("mitigate");
+                
+                // Remove the triggering obstacle
+                obstacles = obstacles.filter(o => o !== obs);
+                
+                if (shields <= 0) {{
+                    gameRunning = false;
+                    endGame(obs.neighbourhood);
+                }} else {{
+                    // Interfere and flash screen
+                    const safetyOverlay = document.getElementById("safety-overlay");
+                    safetyOverlay.style.display = "flex";
+                    setTimeout(() => {{
+                        safetyOverlay.style.display = "none";
+                    }}, 1000);
+                }}
+            }}
+
+            function endGame(district) {{
+                playSound("gameover");
+                document.getElementById("game-over").style.display = "flex";
+                
+                // Pick a poetry consolation piece
+                const matchingOdes = activeOdes.filter(o => o.neighbourhood.toLowerCase() === district.toLowerCase());
+                const finalOde = matchingOdes.length > 0 
+                    ? matchingOdes[Math.floor(Math.random() * matchingOdes.length)]
+                    : activeOdes[Math.floor(Math.random() * activeOdes.length)];
+                
+                document.getElementById("consolation-poetry").innerHTML = finalOde.ode.replace(/\\n/g, "<br/>");
+                document.getElementById("poetry-location").textContent = `— Göteborg Poet Laureate, District of ${{finalOde.neighbourhood}}`;
+            }}
+
+            function gameLoop() {{
+                if (!gameRunning) return;
+                
+                // Handle Keyboard Input
+                if (keys["ArrowLeft"] || keys["a"]) {{
+                    playerX -= playerSpeed;
+                }}
+                if (keys["ArrowRight"] || keys["d"]) {{
+                    playerX += playerSpeed;
+                }}
+                
+                // Constrain vehicle to road boundaries
+                playerX = Math.max(150 + playerWidth/2, Math.min(canvas.width - 150 - playerWidth/2, playerX));
+                
+                // Progress score
+                score += 0.2;
+                document.getElementById("score-hud").textContent = `${{Math.floor(score)}} m`;
+                
+                // Progress speed
+                obstacleSpeed = 4.5 + Math.floor(score / 150) * 0.5;
+                obstacleSpeed = Math.min(obstacleSpeed, 9); // Speed limit
+                
+                // Clear Canvas
+                ctx.fillStyle = "#242e3b"; // Nordic Asphalt grey
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw Highway Green verges (Sweden nature borders)
+                ctx.fillStyle = "#1e3d2f"; // Soft Nordic Forest Pine
+                ctx.fillRect(0, 0, 150, canvas.height);
+                ctx.fillRect(canvas.width - 150, 0, 150, canvas.height);
+                
+                // Solid Solid Yellow Lane Lines (classic Volvo safety highway marker)
+                ctx.fillStyle = "#c68a4c"; // Safety amber/yellow
+                ctx.fillRect(146, 0, 4, canvas.height);
+                ctx.fillRect(canvas.width - 150, 0, 4, canvas.height);
+                
+                // Scrolling road lines
+                roadOffset += obstacleSpeed;
+                if (roadOffset >= 60) roadOffset = 0;
+                
+                ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+                for (let y = -60 + roadOffset; y < canvas.height; y += 60) {{
+                    // Lane divider 1
+                    ctx.fillRect(150 + (canvas.width - 300)/3, y, 4, 30);
+                    // Lane divider 2
+                    ctx.fillRect(150 + 2*(canvas.width - 300)/3, y, 4, 30);
+                }}
+                
+                // Spawn Obstacles (Potholes)
+                obstacleFrameCount++;
+                if (obstacleFrameCount >= obstacleSpawnRate) {{
+                    obstacleFrameCount = 0;
+                    // Lower spawn interval with progress
+                    obstacleSpawnRate = Math.max(70, 120 - Math.floor(score / 100) * 8);
+                    
+                    // Pick random neighborhood
+                    const randomDistrictObj = activeOdes[Math.floor(Math.random() * activeOdes.length)];
+                    const randomDistrict = randomDistrictObj.neighbourhood;
+
+                    // Choose lane randomly
+                    const laneWidth = (canvas.width - 300) / 3;
+                    const randomLane = Math.floor(Math.random() * 3);
+                    const spawnX = 150 + randomLane * laneWidth + laneWidth/2;
+
+                    obstacles.push({{
+                        x: spawnX,
+                        y: -30,
+                        radius: 18 + Math.random() * 8,
+                        neighbourhood: randomDistrict
+                    }});
+                }}
+                
+                // Update and Draw Obstacles
+                let collisionWarningActive = false;
+                
+                obstacles.forEach(obs => {{
+                    obs.y += obstacleSpeed;
+                    drawObstacle(obs);
+                    
+                    // Pre-Collision warning system (Volvo Active Sensor warning)
+                    // Check if an obstacle is directly ahead of the car vertically and close by
+                    const horizontalDist = Math.abs(obs.x - playerX);
+                    const verticalDist = obs.y - playerY;
+                    
+                    if (horizontalDist < 50 && verticalDist < -30 && verticalDist > -250) {{
+                        collisionWarningActive = true;
+                    }}
+                    
+                    // Direct Collision detection
+                    const colXDist = Math.abs(obs.x - playerX);
+                    const colYDist = Math.abs(obs.y - playerY);
+                    
+                    // Using fine-tuned bounding box matching car geometry
+                    if (colXDist < (playerWidth/2 + obs.radius - 2) && colYDist < (playerHeight/2 + obs.radius - 5)) {{
+                        triggerCitySafety(obs);
+                    }}
+                }});
+                
+                // Clean up off-screen obstacles
+                obstacles = obstacles.filter(obs => obs.y < canvas.height + 40);
+                
+                // Toggle warning banner
+                const warningBanner = document.getElementById("warning-banner");
+                if (collisionWarningActive) {{
+                    if (warningBanner.style.display !== "block") {{
+                        warningBanner.style.display = "block";
+                        playSound("warning");
+                    }}
+                }} else {{
+                    warningBanner.style.display = "none";
+                }}
+                
+                // Draw Player (Volvo EX90)
+                drawVolvo(playerX, playerY);
+                
+                requestAnimationFrame(gameLoop);
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    
+    # Render with Streamlit HTML components
+    components.html(game_html, height=530)
+    
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown("### 🇸🇪 Volvo City Safety Integration")
+    st.info(
+        "💡 **Technical Note**: This simulator runs high-fidelity client-side 60fps logic embedded as a secure Sandboxed Iframe. "
+        "It queries live neighborhood odes dynamically compiled from BigQuery and uses local Web Audio API synthesizer for native sound support."
+    )
+    
     # Draw Footer
     st.markdown("<div style='margin-top: 3rem;'></div>", unsafe_allow_html=True)
     st.markdown("---")
