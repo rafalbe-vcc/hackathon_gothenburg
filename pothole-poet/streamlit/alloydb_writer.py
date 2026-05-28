@@ -44,20 +44,32 @@ def insert_pothole_report(
     weather: str,
     mood: str,
     quote: str,
+    swallowed_object: str | None = None,
+    citizen_id: str | None = None,
 ) -> None:
     """Insert one citizen-submitted pothole report. Raises on failure."""
     sql = """
       INSERT INTO pothole_reports (
         neighbourhood, latitude, longitude, severity_iron_marks,
-        weather, reporter_mood, swallowed_object, reporter_quote
+        weather, reporter_mood, swallowed_object, reporter_quote, citizen_id
       ) VALUES (
-        %s, %s, %s, %s, %s, %s, NULL, %s
+        %s, %s, %s, %s, %s, %s, %s, %s, %s
       )
     """
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 sql,
-                (neighbourhood, DEFAULT_LAT, DEFAULT_LNG, severity, weather, mood, quote),
+                (
+                    neighbourhood,
+                    DEFAULT_LAT,
+                    DEFAULT_LNG,
+                    severity,
+                    weather,
+                    mood,
+                    swallowed_object,
+                    quote,
+                    citizen_id,
+                ),
             )
         conn.commit()

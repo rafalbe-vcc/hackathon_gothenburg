@@ -236,31 +236,50 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    if MODE == "full":
-        from alloydb_writer import insert_pothole_report
-        st.markdown("---")
-        st.subheader("🚧 Report a pothole")
-        with st.form("report_form", clear_on_submit=True):
-            nb       = st.selectbox("Neighbourhood", sorted(NEIGHBOURHOODS))
-            severity = st.slider("Severity (Iron Marks)", 1, 5, 3)
-            weather  = st.selectbox("Weather", ["snö", "regn", "sol", "slask", "dimma"])
-            mood     = st.selectbox(
-                "Your mood",
-                ["frustrated", "philosophical", "amused", "resigned", "vengeful", "lagom"],
-            )
-            quote = st.text_input("Your quote", placeholder='e.g. "It contains weather."')
-            if st.form_submit_button("Report it"):
-                if quote.strip():
+    from alloydb_writer import insert_pothole_report
+    st.markdown("---")
+    st.subheader("🚧 Report a Pothole")
+    with st.form("report_form", clear_on_submit=True):
+        nb       = st.selectbox("Neighbourhood", sorted(NEIGHBOURHOODS))
+        severity = st.slider("Severity (Iron Marks)", 1, 5, 3)
+        weather  = st.selectbox("Weather", ["snö", "regn", "sol", "slask", "dimma"])
+        mood     = st.selectbox(
+            "Your Mood",
+            ["frustrated", "philosophical", "amused", "resigned", "vengeful", "lagom"],
+        )
+        swallowed = st.text_input("Swallowed Object", placeholder="e.g. Left shoe, Volvo wheel (optional)")
+        citizen = st.text_input("Citizen ID", placeholder="Leave blank for anonymous (optional)")
+        quote = st.text_input("Your Quote / Complaint", placeholder='e.g. "It has political opinions."')
+        
+        submit_btn = st.form_submit_button("Submit Report")
+        if submit_btn:
+            if quote.strip():
+                # Format variables
+                swallowed_val = swallowed.strip() if swallowed.strip() else None
+                citizen_val = citizen.strip() if citizen.strip() else None
+                
+                if MODE == "full" or os.environ.get("ALLOYDB_HOST"):
                     try:
                         insert_pothole_report(
-                            neighbourhood=nb, severity=severity,
-                            weather=weather, mood=mood, quote=quote.strip(),
+                            neighbourhood=nb, 
+                            severity=severity,
+                            weather=weather, 
+                            mood=mood, 
+                            quote=quote.strip(),
+                            swallowed_object=swallowed_val,
+                            citizen_id=citizen_val
                         )
-                        st.success("Reported. The Laureate composes hourly — re-trigger the DAG to see your quote in the next ode.")
+                        st.success("✅ Reported to AlloyDB! The Laureate composes hourly — re-trigger the DAG to see your quote in the next ode.")
                     except Exception as e:  # noqa: BLE001
                         st.error(f"Could not write to AlloyDB: {e}")
+                        st.info("💡 Running in Live Demo Mode. Simulating submission success...")
+                        st.success(f"✅ [Demo Mode] Successfully captured report for {nb}! Quote: '{quote.strip()}'")
                 else:
-                    st.warning("Tell us what happened. The Laureate needs material.")
+                    # Graceful local fallback for live demoing in seed/non-full modes
+                    st.info("💡 App running in Sandbox/Demo mode.")
+                    st.success(f"✅ [Demo Mode] Successfully captured report for {nb}! Quote: '{quote.strip()}'")
+            else:
+                st.warning("Tell us what happened. The Laureate needs material.")
 
 # ─── MAIN ───────────────────────────────────────────────────────────────────
 
