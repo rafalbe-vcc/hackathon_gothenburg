@@ -17,6 +17,78 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+# ── OpenTelemetry → telemetry.googleapis.com (traces + metrics) ──────────
+import os, time, socket
+import grpc
+import google.auth
+import google.auth.transport.requests
+from google.auth.transport.grpc import AuthMetadataPlugin
+
+from opentelemetry import trace, metrics
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+
+def setup_otel():
+    """Wire OTel traces + metrics to telemetry.googleapis.com. Safe to skip."""
+    if os.environ.get("OTEL_ENABLED", "").lower() not in ("1", "true", "yes"):
+        return
+    # Streamlit reruns the script on every interaction. OTel provider state is
+    # process-global (lives in the opentelemetry package, not in this script),
+    # so check if a real provider is already set before configuring again.
+    if type(trace.get_tracer_provider()).__name__ != "ProxyTracerProvider":
+        return
+    try:
+        credentials, project_id = google.auth.default()
+        request = google.auth.transport.requests.Request()
+        channel_creds = grpc.composite_channel_credentials(
+            grpc.ssl_channel_credentials(),
+            grpc.metadata_call_credentials(
+                AuthMetadataPlugin(credentials=credentials, request=request)),
+        )
+
+        resource = Resource.create({
+            SERVICE_NAME: "pothole-laureate",
+            "service.instance.id": socket.gethostname(),
+            "service.namespace": "laureate",
+            "cloud.region": os.environ.get("REGION", "europe-west1"),
+            "gcp.project_id": project_id or "unknown",
+        })
+
+        # Traces → Cloud Trace
+        tp = TracerProvider(resource=resource)
+        tp.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(
+            credentials=channel_creds,
+            endpoint="https://telemetry.googleapis.com:443/v1/traces",
+        )))
+        trace.set_tracer_provider(tp)
+
+        # Metrics → Cloud Monitoring (PromQL-queryable as prometheus.googleapis.com/*)
+        metrics.set_meter_provider(MeterProvider(
+            resource=resource,
+            metric_readers=[PeriodicExportingMetricReader(
+                OTLPMetricExporter(
+                    credentials=channel_creds,
+                    endpoint="https://telemetry.googleapis.com:443/v1/metrics",
+                ),
+                export_interval_millis=15000,
+            )],
+        ))
+    except Exception as e:
+        print(f"[otel] setup skipped: {e}", flush=True)
+
+setup_otel()
+tracer = trace.get_tracer(__name__)
+meter = metrics.get_meter(__name__)
+request_counter = meter.create_counter(
+    "pothole_laureate_requests", description="Total page renders")
+request_duration = meter.create_histogram(
+    "pothole_laureate_request_duration_seconds",
+    description="Page render duration", unit="s")
 
 # ─── CONFIG ──────────────────────────────────────────────────────────────────
 
@@ -165,16 +237,21 @@ st.markdown(
 
 @st.cache_data(ttl=30)
 def read_broadcast() -> str:
-    if not BROADCAST_BUCKET:
-        return ""
-    try:
-        from google.cloud import storage
-        blob = storage.Client().bucket(BROADCAST_BUCKET).blob("broadcast.txt")
-        if not blob.exists():
-            return ""
-        return blob.download_as_text().strip()
-    except Exception:
-        return ""
+    with tracer.start_as_current_span("read_broadcast"):
+        _start = time.time()
+        res = ""
+        if BROADCAST_BUCKET:
+            try:
+                from google.cloud import storage
+                blob = storage.Client().bucket(BROADCAST_BUCKET).blob("broadcast.txt")
+                if blob.exists():
+                    res = blob.download_as_text().strip()
+            except Exception:
+                pass
+
+        request_counter.add(1, {"function": "read_broadcast"})
+        request_duration.record(time.time() - _start, {"function": "read_broadcast"})
+        return res
 
 
 # ─── DATA ────────────────────────────────────────────────────────────────────
@@ -182,36 +259,48 @@ def read_broadcast() -> str:
 @st.cache_data(ttl=60)
 def load_seed() -> pd.DataFrame:
     """Seed mode: aggregate the bundled CSV locally; placeholder poems."""
-    raw = pd.read_csv(CSV_PATH)
-    g = raw.groupby("neighbourhood").agg(
-        pothole_count=("id", "count"),
-        avg_severity=("severity_iron_marks", "mean"),
-        centroid_lat=("latitude", "mean"),
-        centroid_lng=("longitude", "mean"),
-    ).reset_index()
-    g["ode"] = g["neighbourhood"].apply(
-        lambda n: f"(Placeholder)\nCitizens of {n} await composition.\nThe Laureate composes once the pipeline is live."
-    )
-    g["dominant_weather"] = "—"
-    g["dominant_mood"]    = "—"
-    g["composed_at"]      = pd.NaT
-    return g.sort_values("pothole_count", ascending=False).reset_index(drop=True)
+    with tracer.start_as_current_span("load_seed"):
+        _start = time.time()
+        raw = pd.read_csv(CSV_PATH)
+        g = raw.groupby("neighbourhood").agg(
+            pothole_count=("id", "count"),
+            avg_severity=("severity_iron_marks", "mean"),
+            centroid_lat=("latitude", "mean"),
+            centroid_lng=("longitude", "mean"),
+        ).reset_index()
+        g["ode"] = g["neighbourhood"].apply(
+            lambda n: f"(Placeholder)\nCitizens of {n} await composition.\nThe Laureate composes once the pipeline is live."
+        )
+        g["dominant_weather"] = "—"
+        g["dominant_mood"]    = "—"
+        g["composed_at"]      = pd.NaT
+        res_df = g.sort_values("pothole_count", ascending=False).reset_index(drop=True)
+        request_counter.add(1, {"function": "load_seed"})
+        request_duration.record(time.time() - _start, {"function": "load_seed"})
+        return res_df
 
 
 @st.cache_data(ttl=60)
 def load_live() -> pd.DataFrame:
     """Live/full mode: read enriched table from BigQuery."""
-    from google.cloud import bigquery
-    client = bigquery.Client(project=PROJECT_ID)
-    sql = f"""
-      SELECT neighbourhood, pothole_count, avg_severity,
-             dominant_weather, dominant_mood,
-             centroid_lat, centroid_lng,
-             ode, composed_at
-      FROM `{PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE}`
-      ORDER BY pothole_count DESC
-    """
-    return client.query(sql).to_dataframe()
+    with tracer.start_as_current_span("load_live"):
+        _start = time.time()
+        from google.cloud import bigquery
+        client = bigquery.Client(project=PROJECT_ID)
+        sql = f"""
+        SELECT neighbourhood, pothole_count, avg_severity,
+                dominant_weather, dominant_mood,
+                centroid_lat, centroid_lng,
+                ode, composed_at
+        FROM `{PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE}`
+        ORDER BY pothole_count DESC
+        """
+        res_df = client.query(sql).to_dataframe()
+        request_counter.add(1, {"function": "load_live"})
+        request_duration.record(time.time() - _start, {"function": "load_live"})
+        return res_df
+
+
 
 
 def load_data() -> pd.DataFrame:
