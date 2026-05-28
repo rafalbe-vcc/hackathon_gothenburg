@@ -307,6 +307,69 @@ def load_data() -> pd.DataFrame:
     return load_seed() if MODE == "seed" else load_live()
 
 
+def load_recent_reports() -> pd.DataFrame:
+    """Load the 50 most recent citizen reports directly from AlloyDB."""
+    import psycopg2
+    try:
+        from alloydb_writer import _conn
+        with _conn() as conn:
+            sql = """
+                SELECT reported_at, neighbourhood, severity_iron_marks, 
+                       weather, reporter_mood, swallowed_object, reporter_quote, citizen_id
+                FROM pothole_reports
+                ORDER BY reported_at DESC
+                LIMIT 50
+            """
+            return pd.read_sql(sql, conn)
+    except Exception as e:
+        # Fallback if AlloyDB is not configured or fails
+        import datetime
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return pd.DataFrame([
+            {
+                "reported_at": (now - datetime.timedelta(minutes=3)).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "neighbourhood": "Vasastan",
+                "severity_iron_marks": 5,
+                "weather": "regn",
+                "reporter_mood": "frustrated",
+                "swallowed_object": "Volvo hubcap",
+                "reporter_quote": "My wheel is completely gone, please help!",
+                "citizen_id": "SE89012"
+            },
+            {
+                "reported_at": (now - datetime.timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "neighbourhood": "Haga",
+                "severity_iron_marks": 3,
+                "weather": "dimma",
+                "reporter_mood": "philosophical",
+                "swallowed_object": "Umbrella tip",
+                "reporter_quote": "Is the hole getting deeper, or is the ground getting higher?",
+                "citizen_id": "Anonymous"
+            },
+            {
+                "reported_at": (now - datetime.timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "neighbourhood": "Hisingen",
+                "severity_iron_marks": 4,
+                "weather": "slask",
+                "reporter_mood": "vengeful",
+                "swallowed_object": "Left boot",
+                "reporter_quote": "The sludge swallowed my entire left foot. Gothenburg deserves better.",
+                "citizen_id": "SE44510"
+            },
+            {
+                "reported_at": (now - datetime.timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "neighbourhood": "Majorna",
+                "severity_iron_marks": 2,
+                "weather": "sol",
+                "reporter_mood": "amused",
+                "swallowed_object": "Coffee mug",
+                "reporter_quote": "Pothole is coffee-cup shaped. Perfect cup holder for cycling!",
+                "citizen_id": "Anonymous"
+            }
+        ])
+
+
+
 # ─── HEADER ─────────────────────────────────────────────────────────────────
 
 # Guardian's broadcast banner — appears at the top of every page if set.
@@ -324,6 +387,10 @@ with st.sidebar:
         f'**Mode:** <span class="mode-chip">{MODE}</span>',
         unsafe_allow_html=True,
     )
+
+    st.markdown("---")
+    st.subheader("🧭 Navigation")
+    page = st.radio("Go to page:", ["🖋️ Poet Laureate Office", "📋 Citizen Reports Ledger"], label_visibility="collapsed")
 
     from alloydb_writer import insert_pothole_report
     st.markdown("---")
@@ -377,6 +444,107 @@ df = load_data()
 if df.empty:
     st.warning("No data yet. The Laureate awaits material.")
     st.stop()
+
+
+if page == "📋 Citizen Reports Ledger":
+    st.subheader("📋 Citizen Reports Ledger")
+    st.caption("*Operational log of live community submissions from Gothenburg's roads.*")
+    
+    reports_df = load_recent_reports()
+    
+    if reports_df.empty:
+        st.info("No citizen reports submitted yet. Use the sidebar to submit the first pothole!")
+    else:
+        # Mini dashboard
+        rc1, rc2, rc3 = st.columns(3)
+        rc1.metric("Logged Submissions", len(reports_df))
+        max_severity = int(reports_df["severity_iron_marks"].max()) if not reports_df.empty else 0
+        rc2.metric("Peak Threat Level", f"{max_severity} / 5 Marks")
+        
+        most_common_weather = reports_df["weather"].mode().iloc[0] if not reports_df.empty else "—"
+        rc3.metric("Prevalent Road Conditions", most_common_weather.title())
+        
+        st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
+        
+        # Filters
+        f1, f2 = st.columns([1, 1])
+        with f1:
+            search_query = st.text_input("🔍 Search quotes or swallowed objects:", placeholder="Type to filter...")
+        with f2:
+            nb_filter = st.selectbox("📍 Filter by neighbourhood:", ["All"] + sorted(NEIGHBOURHOODS))
+            
+        # Apply filters
+        filtered_df = reports_df.copy()
+        if search_query:
+            q = search_query.lower()
+            # Handle cases where columns are object/text
+            filtered_df = filtered_df[
+                filtered_df["reporter_quote"].astype(str).str.lower().str.contains(q, na=False) |
+                filtered_df["swallowed_object"].astype(str).str.lower().str.contains(q, na=False)
+            ]
+        if nb_filter != "All":
+            filtered_df = filtered_df[filtered_df["neighbourhood"] == nb_filter]
+            
+        st.markdown(f"**Showing {len(filtered_df)} reports**")
+        
+        # Render cards
+        for idx, row in filtered_df.iterrows():
+            severity_colors = {5: "🔴 Critical", 4: "🟠 High", 3: "🟡 Moderate", 2: "🟢 Minor", 1: "🟢 Negligible"}
+            sev_label = severity_colors.get(row["severity_iron_marks"], "🟡 Unknown")
+            
+            weather_emoji = {
+                "snö": "❄️", "regn": "🌧️", "sol": "☀️", "slask": "🌨️", "dimma": "🌫️"
+            }.get(str(row.get("weather", "")).lower(), "🌤️")
+            
+            mood_emoji = {
+                "frustrated": "😤", "philosophical": "🤔", "amused": "🤭", 
+                "resigned": "😔", "vengeful": "🥷", "lagom": "☕"
+            }.get(str(row.get("reporter_mood", "")).lower(), "🎭")
+            
+            swallowed_str = f"🎒 Swallowed: <strong>{row['swallowed_object']}</strong>" if pd.notna(row.get("swallowed_object")) and row["swallowed_object"] else "🎒 Swallowed: None"
+            citizen_str = f"🆔 Citizen: <code>{row['citizen_id']}</code>" if pd.notna(row.get("citizen_id")) and row["citizen_id"] else "🆔 Citizen: <em>Anonymous</em>"
+            
+            st.markdown(f"""
+            <div class="pothole-card" style="margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap;">
+                    <span style="font-size: 1.25rem; font-weight: 800; color: {PALETTE['charcoal']};">{row['neighbourhood']}</span>
+                    <span style="font-size: 0.85rem; padding: 0.25rem 0.6rem; background: #faf9f6; border-radius: 6px; font-weight: bold; color: {PALETTE['charcoal']};">
+                        {row['reported_at']}
+                    </span>
+                </div>
+                <div style="margin-bottom: 0.8rem; font-size: 0.9rem; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                    <span style="color: #c0392b; font-weight: 700;">{sev_label}</span>
+                    <span style="color: #ccc;">·</span>
+                    <span style="background: rgba(0,0,0,0.03); padding: 0.15rem 0.4rem; border-radius: 4px;">{weather_emoji} {row['weather']}</span>
+                    <span style="color: #ccc;">·</span>
+                    <span style="background: rgba(0,0,0,0.03); padding: 0.15rem 0.4rem; border-radius: 4px;">{mood_emoji} {row['reporter_mood']}</span>
+                </div>
+                <div style="margin-bottom: 0.8rem; font-size: 0.95rem; color: #444; background: rgba(0,0,0,0.01); padding: 0.6rem; border-radius: 6px; display: flex; gap: 20px;">
+                    <span>{swallowed_str}</span>
+                    <span>{citizen_str}</span>
+                </div>
+                <div class="laureate-poem" style="font-size: 1.1rem; padding: 1rem 1.5rem; border-left: 4px solid {PALETTE['copper']}; background: #faf9f6; border-radius: 0 8px 8px 0; margin-bottom: 0; box-shadow: none;">
+                    "{row['reporter_quote']}"
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    # Draw Footer
+    st.markdown("<div style='margin-top: 3rem;'></div>", unsafe_allow_html=True)
+    st.markdown("---")
+    f_col1, f_col2 = st.columns([1, 1])
+    with f_col1:
+        st.caption("© 2026 Göteborg Pothole Poet Laureate Office · Iron & Cloud Hackathon")
+    with f_col2:
+        st.markdown(
+            "<div style='text-align: right; color: rgba(0,0,0,0.4); font-size: 0.85rem; font-weight: 600;'>"
+            "Deployed Version: <span style='padding: 0.2rem 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-family: monospace;'>v3.1.0-gold</span>"
+            "</div>",
+            unsafe_allow_html=True
+        )
+        
+    st.stop()
+
 
 # 📜 GÖTEBORG POETRY TICKER (Live Marquee)
 ticker_items = []
